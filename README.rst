@@ -1,3 +1,8 @@
+To build on Windows
+===================
+
+
+
 This is Python version 3.13.0 alpha 0
 =====================================
 
