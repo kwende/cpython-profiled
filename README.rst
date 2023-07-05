@@ -7,7 +7,14 @@ made to the "v3.8.0-mod" branch.
 
 To build on Windows
 ===================
-
+1. Clone this repo. 
+2. `git checkout v3.8.0-perf`
+3. Open Visual Studio 2022 installer. 
+4. Update Visual Studio 2022 from the installer. 
+5. Open the installer, and selec tthe "Python Development" workload; making sure it's checked. 
+6. Additionally, check "Python native development tools". 
+7. Finally, select "MSVC v140" from the "Individual Components". Install all. 
+8. 
 
 
 This is Python version 3.13.0 alpha 0
