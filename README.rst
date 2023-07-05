@@ -14,7 +14,7 @@ To build on Windows
 5. Open the installer, and select the "Python Development" workload; making sure it's checked. 
 6. Additionally, check "Python native development tools". 
 7. Finally, select "MSVC v140" from the "Individual Components". Install all. 
-8. Drop to command line. `cd cpython-profiled\PCBuild`. 
+8. Drop to command line. `cd cpython-profiled/PCBuild`. 
 9. Run `.\build.bat`. 
 10. Subsequent builds can be done from Visual Studio as `.\build.bat` properly sets up initial environment variables. 
 
