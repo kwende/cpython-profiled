@@ -15,8 +15,8 @@ To build on Windows
 6. Additionally, check "Python native development tools". 
 7. Finally, select "MSVC v140" from the "Individual Components". Install all. 
 8. Drop to command line. `cd cpython-profiled/PCBuild`. 
-9. Run `.\build.bat`. 
-10. Subsequent builds can be done from Visual Studio as `.\build.bat` properly sets up initial environment variables. 
+9. Run `./build.bat`. 
+10. Subsequent builds can be done from Visual Studio as `./build.bat` properly sets up initial environment variables. 
 
 
 This is Python version 3.13.0 alpha 0
