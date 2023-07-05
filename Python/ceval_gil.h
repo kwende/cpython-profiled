@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include <Windows.h>
+
 #include "pycore_atomic.h"
 
 
@@ -220,6 +222,22 @@ _ready:
     MUTEX_LOCK(gil->switch_mutex);
 #endif
     /* We now hold the GIL */
+
+    if (tstate && tstate->frame && tstate->frame->f_code && tstate->frame->f_code->co_filename && 
+        tstate->frame->f_code->co_name)
+    {
+        const char* fileName = PyUnicode_AsUTF8(tstate->frame->f_code->co_filename); 
+        const char* funcName = PyUnicode_AsUTF8(tstate->frame->f_code->co_name);
+        int lineNumber = PyCode_Addr2Line(tstate->frame->f_code, tstate->frame->f_lasti); 
+        int threadId = tstate->id; 
+
+        char szBuffer[1024]; 
+        snprintf(szBuffer, sizeof(szBuffer), "gil-taken|%s:%s:%d|%d", fileName, funcName, lineNumber, threadId); 
+        //snprintf(szBuffer, sizeof(szBuffer), "[gil-taken]%d", threadId);
+
+        OutputDebugStringA(szBuffer); 
+    }
+
     _Py_atomic_store_relaxed(&gil->locked, 1);
     _Py_ANNOTATE_RWLOCK_ACQUIRED(&gil->locked, /*is_write=*/1);
 
