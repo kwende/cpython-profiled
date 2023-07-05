@@ -1,7 +1,8 @@
 Notes
 =====
 This fork introduces some basic tracing on Windows using the OutputDebugStringX API. It's used to create logs 
-for further analysis regarding when and why the GIL is released for real world program profiling. 
+for further analysis regarding when and why the GIL is released for real world program profiling. Modifications are
+made to the "v3.8.0-mod" branch. 
 
 
 To build on Windows
