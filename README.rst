@@ -17,7 +17,7 @@ To build on Windows
 8. Install all. 
 9. Drop to command line. `cd ...../cpython-profiled/PCBuild`. 
 10. Run `./build.bat` from the PCBuild folder. 
-11. Subsequent builds can be done from Visual Studio. First build must use `./build.bat` as it properly sets up initial environment variables. 
+11. Subsequent builds can be done from Visual Studio. First build must use `./build.bat` as it properly sets up requirements / installs 3rd party libraries. 
 
 
 This is Python version 3.13.0 alpha 0
