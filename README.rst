@@ -10,13 +10,14 @@ To build on Windows
 1. Clone this repo. 
 2. `git checkout v3.8.0-perf`
 3. Open Visual Studio 2022 installer. 
-4. Update Visual Studio 2022 from the installer. 
-5. Open the installer, and select the "Python Development" workload; making sure it's checked. 
-6. Additionally, check "Python native development tools". 
-7. Finally, select "MSVC v140" from the "Individual Components". Install all. 
-8. Drop to command line. `cd cpython-profiled/PCBuild`. 
-9. Run `./build.bat`. 
-10. Subsequent builds can be done from Visual Studio as `./build.bat` properly sets up initial environment variables. 
+4. Update Visual Studio 2022 from the installer (if prompted). 
+5. With the installer open find the "Python Development" workload and make sure it's checked. 
+6. Additionally, check "Python native development tools" (will appear on the right-hand side of the installer after selecting the "Python Development" workload),
+7. Finally, search for and select "MSVC v140" from the "Individual Components". 
+8. Install all. 
+9. Drop to command line. `cd ...../cpython-profiled/PCBuild`. 
+10. Run `./build.bat` from the PCBuild folder. 
+11. Subsequent builds can be done from Visual Studio. First build must use `./build.bat` as it properly sets up initial environment variables. 
 
 
 This is Python version 3.13.0 alpha 0
