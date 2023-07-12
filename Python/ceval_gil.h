@@ -117,6 +117,8 @@ static void create_gil(struct _gil_runtime_state *gil)
     _Py_atomic_store_relaxed(&gil->last_holder, 0);
     _Py_ANNOTATE_RWLOCK_CREATE(&gil->locked);
     _Py_atomic_store_explicit(&gil->locked, 0, _Py_memory_order_release);
+
+    OutputDebugStringA("gil-created"); 
 }
 
 static void destroy_gil(struct _gil_runtime_state *gil)
@@ -143,7 +145,7 @@ static void recreate_gil(struct _gil_runtime_state *gil)
 }
 
 static void
-drop_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)
+drop_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate, char* dropper)
 {
     struct _gil_runtime_state *gil = &ceval->gil;
     if (!_Py_atomic_load_relaxed(&gil->locked)) {
@@ -162,7 +164,36 @@ drop_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)
     _Py_ANNOTATE_RWLOCK_RELEASED(&gil->locked, /*is_write=*/1);
     _Py_atomic_store_relaxed(&gil->locked, 0);
     COND_SIGNAL(gil->cond);
+
+    if (tstate && tstate->frame && tstate->frame->f_code && tstate->frame->f_code->co_filename &&
+        tstate->frame->f_code->co_name)
+    {
+        const char* fileName = PyUnicode_AsUTF8(tstate->frame->f_code->co_filename);
+        const char* funcName = PyUnicode_AsUTF8(tstate->frame->f_code->co_name);
+        int lineNumber = PyCode_Addr2Line(tstate->frame->f_code, tstate->frame->f_lasti);
+        int threadId = tstate->id;
+
+        char szBuffer[1024];
+        snprintf(szBuffer, sizeof(szBuffer), "gil-released|%s|%s:%s:%d|%d", dropper, fileName, funcName, lineNumber, threadId);
+        //snprintf(szBuffer, sizeof(szBuffer), "[gil-taken]%d", threadId);
+
+        OutputDebugStringA(szBuffer);
+    }
+    else if(tstate)
+    {
+        char szBuffer[1024];
+        snprintf(szBuffer, sizeof(szBuffer), "gil-released|%s|?:?:?|%d", dropper, tstate->id);
+        OutputDebugStringA(szBuffer);
+    }
+    else
+    {
+        char szBuffer[1024];
+        snprintf(szBuffer, sizeof(szBuffer), "gil-released|%s|?:?:?|?", dropper);
+        OutputDebugStringA(szBuffer); 
+    }
+
     MUTEX_UNLOCK(gil->mutex);
+
 
 #ifdef FORCE_SWITCHING
     if (_Py_atomic_load_relaxed(&ceval->gil_drop_request) && tstate != NULL) {
@@ -183,7 +214,7 @@ drop_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)
 }
 
 static void
-take_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)
+take_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate, char* taker)
 {
     if (tstate == NULL) {
         Py_FatalError("take_gil: NULL tstate");
@@ -193,10 +224,13 @@ take_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)
     int err = errno;
     MUTEX_LOCK(gil->mutex);
 
+    int dropRequested = -1;
+
     if (!_Py_atomic_load_relaxed(&gil->locked)) {
         goto _ready;
     }
 
+    dropRequested = 0; 
     while (_Py_atomic_load_relaxed(&gil->locked)) {
         int timed_out = 0;
         unsigned long saved_switchnum;
@@ -213,6 +247,7 @@ take_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)
             gil->switch_number == saved_switchnum)
         {
             SET_GIL_DROP_REQUEST(ceval);
+            dropRequested++; 
         }
     }
 _ready:
@@ -223,27 +258,44 @@ _ready:
 #endif
     /* We now hold the GIL */
 
-    if (tstate && tstate->frame && tstate->frame->f_code && tstate->frame->f_code->co_filename && 
-        tstate->frame->f_code->co_name)
-    {
-        const char* fileName = PyUnicode_AsUTF8(tstate->frame->f_code->co_filename); 
-        const char* funcName = PyUnicode_AsUTF8(tstate->frame->f_code->co_name);
-        int lineNumber = PyCode_Addr2Line(tstate->frame->f_code, tstate->frame->f_lasti); 
-        int threadId = tstate->id; 
-
-        char szBuffer[1024]; 
-        snprintf(szBuffer, sizeof(szBuffer), "gil-taken|%s:%s:%d|%d", fileName, funcName, lineNumber, threadId); 
-        //snprintf(szBuffer, sizeof(szBuffer), "[gil-taken]%d", threadId);
-
-        OutputDebugStringA(szBuffer); 
-    }
-
     _Py_atomic_store_relaxed(&gil->locked, 1);
     _Py_ANNOTATE_RWLOCK_ACQUIRED(&gil->locked, /*is_write=*/1);
 
+    char* gilTakeStatus = "gil-retaken"; 
+
     if (tstate != (PyThreadState*)_Py_atomic_load_relaxed(&gil->last_holder)) {
+
+        gilTakeStatus = "gil-taken-new"; 
         _Py_atomic_store_relaxed(&gil->last_holder, (uintptr_t)tstate);
         ++gil->switch_number;
+    }
+
+    if (tstate && tstate->frame && tstate->frame->f_code && tstate->frame->f_code->co_filename &&
+        tstate->frame->f_code->co_name)
+    {
+        const char* fileName = PyUnicode_AsUTF8(tstate->frame->f_code->co_filename);
+        const char* funcName = PyUnicode_AsUTF8(tstate->frame->f_code->co_name);
+        int lineNumber = PyCode_Addr2Line(tstate->frame->f_code, tstate->frame->f_lasti);
+        int threadId = tstate->id;
+
+        char szBuffer[1024];
+
+        snprintf(szBuffer, sizeof(szBuffer), "%s|%s|%d|%s:%s:%d|%d", gilTakeStatus, taker,
+            dropRequested, fileName, funcName, lineNumber, threadId);
+
+        OutputDebugStringA(szBuffer);
+    }
+    else if (tstate)
+    {
+        char szBuffer[1024];
+
+        snprintf(szBuffer, sizeof(szBuffer), "%s|%s|%d|?:?:?|%d", gilTakeStatus, taker, dropRequested, tstate->id);
+
+        OutputDebugStringA(szBuffer);
+    }
+    else
+    {
+        OutputDebugStringA("%s|%s|%d|?:?:?|?", gilTakeStatus, taker, dropRequested);
     }
 
 #ifdef FORCE_SWITCHING

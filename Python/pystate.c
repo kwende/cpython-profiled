@@ -8,6 +8,10 @@
 #include "pycore_pystate.h"
 #include "pycore_pylifecycle.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <windows.h>
+
 /* --------------------------------------------------------------------------
 CAUTION
 
@@ -931,6 +935,13 @@ PyThreadState *
 _PyThreadState_Swap(struct _gilstate_runtime_state *gilstate, PyThreadState *newts)
 {
     PyThreadState *oldts = _PyRuntimeGILState_GetThreadState(gilstate);
+
+    if (newts && oldts)
+    {
+        char szBuffer[1024];
+        snprintf(szBuffer, sizeof(szBuffer), "gil-threadswap|%d->%d", oldts->id, newts->id);
+        OutputDebugStringA(szBuffer);
+    }
 
     _PyRuntimeGILState_SetThreadState(gilstate, newts);
     /* It should not be possible for more than one thread state

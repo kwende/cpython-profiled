@@ -210,7 +210,7 @@ PyEval_InitThreads(void)
     PyThread_init_thread();
     create_gil(gil);
     PyThreadState *tstate = _PyRuntimeState_GetThreadState(runtime);
-    take_gil(ceval, tstate);
+    take_gil(ceval, tstate, "PyEval_InitThreads");
 
     struct _pending_calls *pending = &ceval->pending;
     pending->lock = PyThread_allocate_lock();
@@ -242,7 +242,7 @@ exit_thread_if_finalizing(_PyRuntimeState *runtime, PyThreadState *tstate)
 {
     /* _Py_Finalizing is protected by the GIL */
     if (runtime->finalizing != NULL && !_Py_CURRENTLY_FINALIZING(runtime, tstate)) {
-        drop_gil(&runtime->ceval, tstate);
+        drop_gil(&runtime->ceval, tstate, "exit_thread_if_finalizing");
         PyThread_exit_thread();
     }
 }
@@ -285,7 +285,7 @@ PyEval_AcquireLock(void)
     if (tstate == NULL) {
         Py_FatalError("PyEval_AcquireLock: current thread state is NULL");
     }
-    take_gil(ceval, tstate);
+    take_gil(ceval, tstate, "PyEval_AcquireLock");
     exit_thread_if_finalizing(runtime, tstate);
 }
 
@@ -298,7 +298,7 @@ PyEval_ReleaseLock(void)
        We therefore avoid PyThreadState_Get() which dumps a fatal error
        in debug mode.
     */
-    drop_gil(&runtime->ceval, tstate);
+    drop_gil(&runtime->ceval, tstate, "PyEval_ReleaseLock");
 }
 
 void
@@ -313,7 +313,7 @@ PyEval_AcquireThread(PyThreadState *tstate)
 
     /* Check someone has called PyEval_InitThreads() to create the lock */
     assert(gil_created(&ceval->gil));
-    take_gil(ceval, tstate);
+    take_gil(ceval, tstate, "PyEval_AcquireThread");
     exit_thread_if_finalizing(runtime, tstate);
     if (_PyThreadState_Swap(&runtime->gilstate, tstate) != NULL) {
         Py_FatalError("PyEval_AcquireThread: non-NULL old thread state");
@@ -332,7 +332,7 @@ PyEval_ReleaseThread(PyThreadState *tstate)
     if (new_tstate != tstate) {
         Py_FatalError("PyEval_ReleaseThread: wrong thread state");
     }
-    drop_gil(&runtime->ceval, tstate);
+    drop_gil(&runtime->ceval, tstate, "PyEval_ReleaseThread");
 }
 
 /* This function is called from PyOS_AfterFork_Child to destroy all threads
@@ -349,7 +349,7 @@ _PyEval_ReInitThreads(_PyRuntimeState *runtime)
     }
     recreate_gil(&ceval->gil);
     PyThreadState *current_tstate = _PyRuntimeState_GetThreadState(runtime);
-    take_gil(ceval, current_tstate);
+    take_gil(ceval, current_tstate, "_PyEval_ReInitThreads");
 
     struct _pending_calls *pending = &ceval->pending;
     pending->lock = PyThread_allocate_lock();
@@ -380,7 +380,7 @@ PyEval_SaveThread(void)
         Py_FatalError("PyEval_SaveThread: NULL tstate");
     }
     assert(gil_created(&ceval->gil));
-    drop_gil(ceval, tstate);
+    drop_gil(ceval, tstate, "PyEval_SaveThread");
     return tstate;
 }
 
@@ -396,7 +396,7 @@ PyEval_RestoreThread(PyThreadState *tstate)
     assert(gil_created(&ceval->gil));
 
     int err = errno;
-    take_gil(ceval, tstate);
+    take_gil(ceval, tstate, "PyEval_RestoreThread");
     exit_thread_if_finalizing(runtime, tstate);
     errno = err;
 
@@ -1239,11 +1239,11 @@ main_loop:
                 if (_PyThreadState_Swap(&runtime->gilstate, NULL) != tstate) {
                     Py_FatalError("ceval: tstate mix-up");
                 }
-                drop_gil(ceval, tstate);
+                drop_gil(ceval, tstate, "_PyEval_EvalFrameDefault");
 
                 /* Other threads may run now */
 
-                take_gil(ceval, tstate);
+                take_gil(ceval, tstate, "_PyEval_EvalFrameDefault");
 
                 /* Check if we should make a quick exit. */
                 exit_thread_if_finalizing(runtime, tstate);
